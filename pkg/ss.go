@@ -71,7 +71,7 @@ func loadSecrets(name, prefix, path string) ([]hivev1.SecretMapping, error) {
 	return secrets, err
 }
 
-func loadResources(path string) ([]runtime.RawExtension, error) {
+func loadResources(path string, aa []byte) ([]runtime.RawExtension, error) {
 	var resources = []runtime.RawExtension{}
 	if path == "" {
 		return resources, nil
@@ -82,9 +82,12 @@ func loadResources(path string) ([]runtime.RawExtension, error) {
 				return err
 			}
 			if strings.HasSuffix(p, ".yaml") {
-				data, err := ioutil.ReadFile(p)
-				if err != nil {
-					return err
+				data := aa
+				if data == nil {
+					data, err = ioutil.ReadFile(p)
+					if err != nil {
+						return err
+					}
 				}
 
 				all := bytes.Split(data, []byte("---"))
@@ -187,8 +190,8 @@ func TransformSecrets(name, prefix, path string) []corev1.Secret {
 	return secrets
 }
 
-func CreateSelectorSyncSet(name string, selector string, resourcesPath string, patchesPath string) (hivev1.SelectorSyncSet, hivev1.SelectorSyncSet) {
-	resources, err := loadResources(resourcesPath)
+func CreateSelectorSyncSet(name string, selector string, aa []byte, resourcesPath string, patchesPath string) (hivev1.SelectorSyncSet, hivev1.SelectorSyncSet) {
+	resources, err := loadResources(resourcesPath, aa)
 	if err != nil {
 		log.Println(err)
 	}
@@ -253,7 +256,7 @@ func CreateSelectorSyncSet(name string, selector string, resourcesPath string, p
 }
 
 func CreateSyncSet(name string, clusterName string, resourcesPath string, patchesPath string) hivev1.SyncSet {
-	resources, err := loadResources(resourcesPath)
+	resources, err := loadResources(resourcesPath, nil)
 	if err != nil {
 		log.Println(err)
 	}

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/matt-simons/ss/pkg"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
@@ -20,11 +22,17 @@ func init() {
 }
 
 var selector, clusterName, resources, patches, name string
+var input []byte
 
 var RootCmd = &cobra.Command{
 	Use:   "ss",
 	Short: "SyncSet/SelectorSyncSet generator.",
 	Long:  ``,
+}
+
+func isInputFromPipe() bool {
+    fileInfo, _ := os.Stdin.Stat()
+    return fileInfo.Mode() & os.ModeCharDevice == 0
 }
 
 var viewCmd = &cobra.Command{
@@ -60,6 +68,9 @@ var viewCmd = &cobra.Command{
 			}
 			fmt.Printf("%s\n\n", string(j))
 		} else {
+			if isInputFromPipe() {
+				input , _ = ioutil.ReadAll(os.Stdin)
+			}
 			secrets := pkg.TransformSecrets(args[0], "sss", resources)
 			for _, s := range secrets {
 				j, err := json.MarshalIndent(&s, "", "    ")
@@ -68,7 +79,7 @@ var viewCmd = &cobra.Command{
 				}
 				fmt.Printf("%s\n", string(j))
 			}
-			ss1, ss2 := pkg.CreateSelectorSyncSet(args[0], selector, resources, patches)
+			ss1, ss2 := pkg.CreateSelectorSyncSet(args[0], selector, input, resources, patches)
 			j1, err := json.MarshalIndent(&ss1, "", "    ")
 			j2, err := json.MarshalIndent(&ss2, "", "    ")
 			if err != nil {
