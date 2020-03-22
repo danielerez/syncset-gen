@@ -187,7 +187,7 @@ func TransformSecrets(name, prefix, path string) []corev1.Secret {
 	return secrets
 }
 
-func CreateSelectorSyncSet(name string, selector string, resourcesPath string, patchesPath string) hivev1.SelectorSyncSet {
+func CreateSelectorSyncSet(name string, selector string, resourcesPath string, patchesPath string) (hivev1.SelectorSyncSet, hivev1.SelectorSyncSet) {
 	resources, err := loadResources(resourcesPath)
 	if err != nil {
 		log.Println(err)
@@ -221,7 +221,7 @@ func CreateSelectorSyncSet(name string, selector string, resourcesPath string, p
 		},
 		Spec: hivev1.SelectorSyncSetSpec{
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
-				Resources:         resources,
+				Resources:         resources[:len(resources)-1],
 				Patches:           patches,
 				ResourceApplyMode: "Sync",
 				Secrets:           secrets,
@@ -229,7 +229,27 @@ func CreateSelectorSyncSet(name string, selector string, resourcesPath string, p
 			ClusterDeploymentSelector: *labelSelector,
 		},
 	}
-	return *syncSet
+	var syncSet2 = &hivev1.SelectorSyncSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "SelectorSyncSet",
+			APIVersion: "hive.openshift.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "derez",
+			Labels: map[string]string{
+				"generated": "true",
+			},
+		},
+		Spec: hivev1.SelectorSyncSetSpec{
+			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
+				Resources:         resources[len(resources)-1:],
+				ResourceApplyMode: "Sync",
+			},
+			ClusterDeploymentSelector: *labelSelector,
+		},
+	}
+
+	return *syncSet, *syncSet2
 }
 
 func CreateSyncSet(name string, clusterName string, resourcesPath string, patchesPath string) hivev1.SyncSet {

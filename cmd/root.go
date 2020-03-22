@@ -68,13 +68,13 @@ var viewCmd = &cobra.Command{
 				}
 				fmt.Printf("%s\n", string(j))
 			}
-			var ss hivev1.SelectorSyncSet
-			ss = pkg.CreateSelectorSyncSet(args[0], selector, resources, patches)
-			j, err := json.MarshalIndent(&ss, "", "    ")
+			ss1, ss2 := pkg.CreateSelectorSyncSet(args[0], selector, resources, patches)
+			j1, err := json.MarshalIndent(&ss1, "", "    ")
+			j2, err := json.MarshalIndent(&ss2, "", "    ")
 			if err != nil {
 				log.Fatalf("error: %v", err)
 			}
-			fmt.Printf("%s\n\n", string(j))
+			fmt.Printf("%s\n---\n%s\n\n", string(j1), string(j2))
 		}
 	},
 }
