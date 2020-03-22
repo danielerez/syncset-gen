@@ -85,20 +85,26 @@ func loadResources(path string) ([]runtime.RawExtension, error) {
 				if err != nil {
 					return err
 				}
-				jsonBytes, err := yaml.YAMLToJSON(data)
-				if err != nil {
-					return err
-				}
-				var j map[string]interface{}
-				json.Unmarshal(jsonBytes, &j)
-				kind, ok := j["kind"].(string)
-				if ok && kind != "Secret" {
-					var r = runtime.RawExtension{}
-					err = r.UnmarshalJSON(jsonBytes)
+
+				unified := string(data)
+				all := strings.Split(unified, "---")
+
+				for _, y := range all {
+					jsonBytes, err := yaml.YAMLToJSON([]byte(y))
 					if err != nil {
 						return err
 					}
-					resources = append(resources, r)
+					var j map[string]interface{}
+					json.Unmarshal(jsonBytes, &j)
+					kind, ok := j["kind"].(string)
+					if ok && kind != "Secret" {
+						var r = runtime.RawExtension{}
+						err = r.UnmarshalJSON(jsonBytes)
+						if err != nil {
+							return err
+						}
+						resources = append(resources, r)
+					}
 				}
 			}
 			return nil
