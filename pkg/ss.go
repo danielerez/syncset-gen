@@ -238,7 +238,7 @@ func CreateSelectorSyncSet(name string, selector string, aa []byte, resourcesPat
 			APIVersion: "hive.openshift.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "derez",
+			Name: "derez",
 			Labels: map[string]string{
 				"generated": "true",
 			},

@@ -72,14 +72,14 @@ package cmd
 				if isInputFromPipe() {
 					input , _ = ioutil.ReadAll(os.Stdin)
 				}
-				secrets := pkg.TransformSecrets(args[0], "sss", resources)
-				for _, s := range secrets {
-					j, err := json.MarshalIndent(&s, "", "    ")
-					if err != nil {
-						log.Fatalf("error: %v", err)
-					}
-					fmt.Printf("%s\n", string(j))
-				}
+//				secrets := pkg.TransformSecrets(args[0], "sss", resources)
+//				for _, s := range secrets {
+//					j, err := json.MarshalIndent(&s, "", "    ")
+//					if err != nil {
+//						log.Fatalf("error: %v", err)
+//					}
+//					fmt.Printf("%s\n", string(j))
+//				}
 				ss1, ss2 := pkg.CreateSelectorSyncSet(args[0], selector, input, resources, patches)
 			j1, err := yaml.Marshal(&ss1)
 			j2, err := yaml.Marshal(&ss2)
