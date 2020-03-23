@@ -19,10 +19,12 @@ package cmd
 		viewCmd.Flags().StringVarP(&clusterName, "cluster-name", "c", "", "The cluster name used to match the SyncSet to a Cluster")
 		viewCmd.Flags().StringVarP(&resources, "resources", "r", "", "The directory of resource manifest files to use")
 		viewCmd.Flags().StringVarP(&patches, "patches", "p", "", "The directory of patch manifest files to use")
+		viewCmd.Flags().BoolVarP(&flatten, "flatten", "f", false, "Output a single SelectorSyncSet")
 		RootCmd.AddCommand(viewCmd)
 	}
 
 	var selector, clusterName, resources, patches, name string
+	var flatten bool
 	var input []byte
 
 	var RootCmd = &cobra.Command{
@@ -80,13 +82,17 @@ package cmd
 //					}
 //					fmt.Printf("%s\n", string(j))
 //				}
-				ss1, ss2 := pkg.CreateSelectorSyncSet(args[0], selector, input, resources, patches)
+				ss1, ss2 := pkg.CreateSelectorSyncSet(args[0], selector, input, resources, patches, flatten)
 			j1, err := yaml.Marshal(&ss1)
 			j2, err := yaml.Marshal(&ss2)
 			if err != nil {
 				log.Fatalf("error: %v", err)
 			}
-			fmt.Printf("%s---\n%s\n\n", string(j1), string(j2))
+			if flatten {
+				fmt.Printf("%s\n\n", string(j1))
+			} else {
+				fmt.Printf("%s---\n%s\n\n", string(j1), string(j2))
+			}
 		}
 	},
 }
