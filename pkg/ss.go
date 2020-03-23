@@ -73,46 +73,42 @@ func loadSecrets(name, prefix, path string) ([]hivev1.SecretMapping, error) {
 
 func loadResources(path string, aa []byte) ([]runtime.RawExtension, error) {
 	var resources = []runtime.RawExtension{}
-	if path == "" {
-		return resources, nil
-	}
-	err := filepath.Walk(path,
-		func(p string, info os.FileInfo, err error) error {
+	if aa != nil {
+		data := aa
+		all := bytes.Split(data, []byte("---"))
+
+		for _, y := range all {
+			jsonBytes, err := yaml.YAMLToJSON(y)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			if strings.HasSuffix(p, ".yaml") {
-				data := aa
-				if data == nil {
-					data, err = ioutil.ReadFile(p)
-					if err != nil {
-						return err
-					}
+			var j map[string]interface{}
+			json.Unmarshal(jsonBytes, &j)
+			kind, ok := j["kind"].(string)
+			if ok && kind != "Secret" {
+				var r = runtime.RawExtension{}
+				err = r.UnmarshalJSON(jsonBytes)
+				if err != nil {
+					return nil, err
 				}
-
-				all := bytes.Split(data, []byte("---"))
-
-				for _, y := range all {
-					jsonBytes, err := yaml.YAMLToJSON(y)
-					if err != nil {
-						return err
-					}
-					var j map[string]interface{}
-					json.Unmarshal(jsonBytes, &j)
-					kind, ok := j["kind"].(string)
-					if ok && kind != "Secret" {
-						var r = runtime.RawExtension{}
-						err = r.UnmarshalJSON(jsonBytes)
-						if err != nil {
-							return err
-						}
-						resources = append(resources, r)
-					}
-				}
+				resources = append(resources, r)
 			}
-			return nil
-		})
-	return resources, err
+		}
+	}
+	// if path == "" {
+	// 	return resources, nil
+	// }
+	// err := filepath.Walk(path,
+	// 	func(p string, info os.FileInfo, err error) error {
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if strings.HasSuffix(p, ".yaml") {
+
+	// 		}
+	// 		return nil
+	// 	})
+	return resources, nil
 }
 
 func loadPatches(path string) ([]hivev1.SyncObjectPatch, error) {
@@ -190,13 +186,8 @@ func TransformSecrets(name, prefix, path string) []corev1.Secret {
 	return secrets
 }
 
-func CreateSelectorSyncSet(name string, selector string, aa []byte, resourcesPath string, patchesPath string) (hivev1.SelectorSyncSet, hivev1.SelectorSyncSet) {
+func CreateSelectorSyncSet(name string, selector string, aa []byte, resourcesPath string, patchesPath string, flatten bool) (hivev1.SelectorSyncSet, hivev1.SelectorSyncSet) {
 	resources, err := loadResources(resourcesPath, aa)
-	if err != nil {
-		log.Println(err)
-	}
-
-	secrets, err := loadSecrets(name, "sss", resourcesPath)
 	if err != nil {
 		log.Println(err)
 	}
@@ -211,48 +202,55 @@ func CreateSelectorSyncSet(name string, selector string, aa []byte, resourcesPat
 		log.Println(err)
 	}
 
+	syncSet1Res := resources
+	if !flatten {
+		syncSet1Res = resources[:len(resources)-1]
+	}
+
 	var syncSet = &hivev1.SelectorSyncSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SelectorSyncSet",
 			APIVersion: "hive.openshift.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name: name + "_crd",
 			Labels: map[string]string{
 				"generated": "true",
 			},
 		},
 		Spec: hivev1.SelectorSyncSetSpec{
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
-				Resources:         resources[:len(resources)-1],
+				Resources:         syncSet1Res,
 				Patches:           patches,
 				ResourceApplyMode: "Sync",
-				Secrets:           secrets,
 			},
 			ClusterDeploymentSelector: *labelSelector,
 		},
 	}
-	var syncSet2 = &hivev1.SelectorSyncSet{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "SelectorSyncSet",
-			APIVersion: "hive.openshift.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "derez",
-			Labels: map[string]string{
-				"generated": "true",
+	if !flatten {
+		var syncSet2 = &hivev1.SelectorSyncSet{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SelectorSyncSet",
+				APIVersion: "hive.openshift.io/v1",
 			},
-		},
-		Spec: hivev1.SelectorSyncSetSpec{
-			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
-				Resources:         resources[len(resources)-1:],
-				ResourceApplyMode: "Sync",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name + "_cr",
+				Labels: map[string]string{
+					"generated": "true",
+				},
 			},
-			ClusterDeploymentSelector: *labelSelector,
-		},
+			Spec: hivev1.SelectorSyncSetSpec{
+				SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
+					Resources:         resources[len(resources)-1:],
+					ResourceApplyMode: "Sync",
+				},
+				ClusterDeploymentSelector: *labelSelector,
+			},
+		}
+		return *syncSet, *syncSet2
 	}
 
-	return *syncSet, *syncSet2
+	return *syncSet, *syncSet
 }
 
 func CreateSyncSet(name string, clusterName string, resourcesPath string, patchesPath string) hivev1.SyncSet {
